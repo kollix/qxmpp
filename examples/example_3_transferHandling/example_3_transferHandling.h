@@ -28,7 +28,7 @@
 #include "QXmppClient.h"
 #include "QXmppTransferManager.h"
 
-class QBuffer;
+#include <QBuffer>
 
 class xmppClient : public QXmppClient
 {
