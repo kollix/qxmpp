@@ -28,8 +28,6 @@
 #include "QXmppClient.h"
 #include "QXmppTransferManager.h"
 
-#include <QBuffer>
-
 class xmppClient : public QXmppClient
 {
     Q_OBJECT
