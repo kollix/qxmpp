@@ -71,6 +71,7 @@ public:
 
     // DNS
     QDnsLookup dns;
+    int nextSrvRecordIdx;
 
     // Stream
     QString streamId;
@@ -101,7 +102,8 @@ private:
 };
 
 QXmppOutgoingClientPrivate::QXmppOutgoingClientPrivate(QXmppOutgoingClient *qq)
-    : redirectPort(0)
+    : nextSrvRecordIdx(0)
+    , redirectPort(0)
     , sessionAvailable(false)
     , sessionStarted(false)
     , isAuthenticated(false)
@@ -224,6 +226,7 @@ void QXmppOutgoingClient::connectToHost()
     d->dns.setName("_xmpp-client._tcp." + domain);
     d->dns.setType(QDnsLookup::SRV);
     d->dns.lookup();
+    d->nextSrvRecordIdx = 0;
 }
 
 void QXmppOutgoingClient::_q_dnsLookupFinished()
@@ -234,6 +237,7 @@ void QXmppOutgoingClient::_q_dnsLookupFinished()
         d->connectToHost(
             d->dns.serviceRecords().first().target(),
             d->dns.serviceRecords().first().port());
+        d->nextSrvRecordIdx = 1;
     } else {
         // as a fallback, use domain as the host name
         warning(QString("Lookup for domain %1 failed: %2")
@@ -286,8 +290,18 @@ void QXmppOutgoingClient::socketSslErrors(const QList<QSslError> &errors)
 
 void QXmppOutgoingClient::socketError(QAbstractSocket::SocketError socketError)
 {
-    Q_UNUSED(socketError);
-    emit error(QXmppClient::SocketError);
+    if ( !d->sessionStarted &&
+         (d->dns.serviceRecords().count() > d->nextSrvRecordIdx) )
+    {
+        // some network error occured during startup -> try next available SRV record server
+        d->connectToHost(
+            d->dns.serviceRecords().at(d->nextSrvRecordIdx).target(),
+            d->dns.serviceRecords().at(d->nextSrvRecordIdx).port());
+
+        d->nextSrvRecordIdx++;
+    }
+    else
+      emit error(QXmppClient::SocketError);
 }
 
 /// \cond
